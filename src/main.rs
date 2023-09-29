@@ -1,42 +1,102 @@
-#[derive(Debug, Default)]
+use std::fmt;
+use fraction::Fraction;
+
+#[derive(Debug, Clone)]        
 struct Matrix<const R : usize, const C : usize> {
-    rows : [[f32; C]; R]
+    rows : [[Fraction; C]; R]
+}
+
+impl<const R : usize, const C : usize> fmt::Display for Matrix<R, C> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let mut diagram = "".to_owned();
+
+        for r in 1..=R {
+            for c in 1..=C {
+                diagram = diagram + &self.get(r, c).to_string() + " ";
+            }
+            diagram = diagram + "\n";
+        }
+
+        write!(f, "{}", diagram)
+    }
 }
 
 impl<const R : usize, const C : usize> Matrix<R, C> {
     
-    fn elem(&self, r : usize, c : usize) -> f32 {
-        self.rows[r][c]; //how to access element in 2D array???
-
-    fn rows(&self) {
-        self.rows.clone().into_iter()
+    fn new(rows : [[Fraction; C]; R]) -> Matrix<R, C> {
+        Matrix { rows }
     }
 
-    fn transpose(&self) -> Matrix<C, R> {
-        transpose = Matrix<C, R>::default();
-        
-        for row in self.rows() {
-            for column in row {
-                transpose.elem = self.rows[column]; 
+    fn get(&self, r : usize, c : usize) -> Fraction {
+        self.rows[r - 1][c - 1] //how to access element in 2D array
+    }
+
+    fn set(&mut self, r : usize, c : usize, f : Fraction) {
+        self.rows[r - 1][c - 1] = f;
+    }
+
+    fn scale_row(&self, row : usize, scalar : Fraction) -> Matrix<R, C> {
+        let mut scaled = self.clone();
+
+        for c in 1..=C {
+            scaled.set(row, c, scalar * self.get(row, c));
+        }
+
+        scaled
+    }
+
+    fn add_rows(&self, scalar : Fraction, addend_row : usize, addee_row : usize) -> Matrix<R, C> {
+        let mut result = self.clone();
+
+        for c in 1..=C {
+            result.set(addee_row, c, result.get(addee_row, c) + scalar * self.get(addend_row, c));
+        }
+
+        result
+    }
+
+
+    fn row_echelon(&self) -> Matrix<R, C> {
+        let mut result = self.clone();
+
+        for c in 1..C {
+
+            let mut pivot = 0;
+            for r in 1..=R {
+                if result.get(r, c) != Fraction::from(0) {
+                    let mut pivot_in_previous_column = false;
+                    for x in 1..c {
+                        if result.get(r, x) != Fraction::from(0) { pivot_in_previous_column = true; }
+                    }
+                    if !pivot_in_previous_column {
+                    pivot = r;
+                        break;
+                    }
+                }
+            }
+
+            if pivot == 0 { continue; }
+
+            for r in 1..=R {
+                if r != pivot {
+                    result = result.add_rows( -result.get(r, c)/result.get(pivot, c), pivot, r);
+                }
             }
         }
-    }
+        
+        for r in 1..=R {
+            let mut scalar = Fraction::from(1);
+            for c in 1..=C {
+                let s = result.get(r, c);
+                if s != Fraction::from(0) {
+                    scalar = Fraction::from(1) / s;
+                    break;
+                }
+            }
+            result = result.scale_row(r, scalar);
+        } 
 
-    fn num_rows(&self) -> usize {
-        self.rows.len()
-    }
-
-    fn num_columns(&self) -> usize {
-        self.rows[0].len()
-    }
-
-    //fn scale_row(
-
-    fn row_echelon(&self) /* -> Matrix<R, C> */ {
-       println!("{}", format!("{self:?}"));
-
-       // for column in 0..(num_columns - 1) {
-            
+        result
 
     }
 
@@ -44,16 +104,18 @@ impl<const R : usize, const C : usize> Matrix<R, C> {
 
 
 fn main() {
+    
+    let a1 = [Fraction::from(-3), Fraction::from(1), Fraction::from(2), Fraction::from(0)];
+    let a2 = [Fraction::from(1), Fraction::from(-6), Fraction::from(3), Fraction::from(0)];
+    let a3 = [Fraction::from(2), Fraction::from(3), Fraction::from(-6), Fraction::from(0)];
 
-    let A : Vec<Vec<f32>> = vec!(
-        vec!(2.0, 5.0, 7.0),
-        vec!(3.0, 3.0, 9.0),
-        vec!(4.0, 8.0, 1.0)
-    );
+    let A = [a1, a2, a3];
 
-    let b : Vec<f32> = vec!(6.0, 1.0, 1.0);
+    let matrix = Matrix::new(A);
 
-    let matrix = Matrix { rows : A };
+    let echeloned = matrix.row_echelon();
 
-    matrix.row_echelon();
+    println!("{}", matrix);
+    println!("{}", echeloned);
+
 }
